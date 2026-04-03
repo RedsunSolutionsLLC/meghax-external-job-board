@@ -1,0 +1,137 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #FAF7F5;
+  color: #1A1210;
+  font-size: 14px;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+body.dark-mode {
+  background-color: #0C0A0A;
+  color: #F5F0EF;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* ── Job description rich-text styling ── */
+.job-description-content {
+  font-size: 15px;
+  line-height: 1.75;
+  color: #1A1210;
+}
+
+body.dark-mode .job-description-content {
+  color: #F5F0EF;
+}
+
+/* Paragraphs */
+.job-description-content p {
+  margin: 0 0 14px;
+}
+
+.job-description-content p:last-child {
+  margin-bottom: 0;
+}
+
+/* Section headings (generated from short standalone <p> tags) */
+.job-description-content h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1A1210;
+  margin: 28px 0 12px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid #EDE7E4;
+}
+
+body.dark-mode .job-description-content h3 {
+  color: #F5F0EF;
+  border-bottom-color: #2A1F1E;
+}
+
+.job-description-content h3:first-child {
+  margin-top: 0;
+}
+
+/* Bullet lists (generated from &nbsp;-prefixed <p> tags) */
+.job-description-content ul {
+  margin: 4px 0 18px 0;
+  padding: 0 0 0 20px;
+  list-style: none;
+}
+
+.job-description-content ul li {
+  position: relative;
+  padding-left: 16px;
+  margin-bottom: 10px;
+  line-height: 1.7;
+}
+
+.job-description-content ul li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 10px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #D94F3D;
+}
+
+/* Ordered lists if they exist */
+.job-description-content ol {
+  margin: 4px 0 18px 24px;
+  padding: 0;
+}
+
+.job-description-content ol li {
+  margin-bottom: 8px;
+  line-height: 1.7;
+}
+
+/* Inline formatting */
+.job-description-content strong,
+.job-description-content b {
+  font-weight: 600;
+  color: #1A1210;
+}
+
+body.dark-mode .job-description-content strong,
+body.dark-mode .job-description-content b {
+  color: #F5F0EF;
+}
+
+.job-description-content a {
+  color: #D94F3D;
+  text-decoration: none;
+}
+
+.job-description-content a:hover {
+  text-decoration: underline;
+}
+
+/* ── Dark mode overrides for Ant Design ── */
+body.dark-mode .ant-card {
+  border-color: #2A1F1E !important;
+}
+
+body.dark-mode .ant-divider {
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+body.dark-mode .ant-table-wrapper {
+  border-color: #2A1F1E;
+}
+
+body.dark-mode .ant-tag {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
