@@ -454,6 +454,10 @@ export default function JobDetailPage() {
           form={form}
           layout="vertical"
           onFinish={handleApply}
+          onFinishFailed={() => {
+            msg.error('Please fill in all required fields before submitting.');
+          }}
+          scrollToFirstError
           initialValues={{ country_code: '+1' }}
         >
           {/* ── Resume Upload ── */}
