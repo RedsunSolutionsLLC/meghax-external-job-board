@@ -139,6 +139,10 @@ export default function MainLayout() {
 
       <Footer style={{ textAlign: 'center', color: '#9C8480', background: 'transparent', fontSize: 13 }}>
         MeghaX Job Board &copy; {new Date().getFullYear()}
+        {' · '}
+        <a href="https://meghax.com/privacy" target="_blank" rel="noopener noreferrer" style={{ color: '#9C8480' }}>Privacy Policy</a>
+        {' · '}
+        <a href="https://meghax.com/terms" target="_blank" rel="noopener noreferrer" style={{ color: '#9C8480' }}>Terms &amp; Conditions</a>
       </Footer>
     </Layout>
   );

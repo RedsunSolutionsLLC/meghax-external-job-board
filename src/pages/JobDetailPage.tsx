@@ -998,7 +998,7 @@ export default function JobDetailPage() {
           >
             <Checkbox>
               By applying, you hereby accept the data processing terms under the{' '}
-              <a href="/privacy-policy" target="_blank" rel="noopener noreferrer">
+              <a href="https://meghax.com/privacy" target="_blank" rel="noopener noreferrer">
                 Privacy Policy
               </a>{' '}
               and give consent to processing of the data as part of this job application.
