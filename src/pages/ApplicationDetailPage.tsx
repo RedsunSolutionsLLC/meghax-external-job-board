@@ -15,6 +15,7 @@ import {
   Result,
   App,
   Checkbox,
+  theme,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -34,13 +35,111 @@ import type { ApplicationDetail, Interview, TimeSlot } from '../api/types';
 
 const { Text } = Typography;
 
-const STATUS_CONFIG: Record<string, { color: string; label: string; alertType: 'info' | 'success' | 'warning' | 'error' }> = {
-  applied: { color: 'blue', label: 'Applied', alertType: 'info' },
-  interview: { color: 'purple', label: 'Interview Date Confirmation Needed', alertType: 'warning' },
-  offer_pending: { color: 'orange', label: 'Offer Pending', alertType: 'info' },
-  accepted: { color: 'green', label: 'Accepted', alertType: 'success' },
-  rejected: { color: 'red', label: 'Rejected', alertType: 'error' },
-  offer_withdrawn: { color: 'orange', label: 'Offer Withdrawn', alertType: 'warning' },
+type StatusDisplay = {
+  color: string;
+  label: string;
+  alertType: 'info' | 'success' | 'warning' | 'error';
+  message: string;
+};
+
+const PIPELINE_STATUS_CONFIG: Record<string, Omit<StatusDisplay, 'message'>> = {
+  applied:         { color: 'blue',   label: 'Applied',          alertType: 'info' },
+  submitted:       { color: 'cyan',   label: 'Submitted',        alertType: 'info' },
+  offer_pending:   { color: 'orange', label: 'Offer Pending',    alertType: 'info' },
+  accepted:        { color: 'green',  label: 'Accepted',         alertType: 'success' },
+  rejected:        { color: 'red',    label: 'Rejected',         alertType: 'error' },
+  offer_withdrawn: { color: 'orange', label: 'Offer Withdrawn',  alertType: 'warning' },
+};
+
+const getEnrichedInterviewStatus = (interviews: Interview[]): StatusDisplay => {
+  if (interviews.length === 0) {
+    return {
+      color: 'purple',
+      label: 'Interview',
+      alertType: 'info',
+      message: 'You have been moved to the interview stage.',
+    };
+  }
+
+  const n = (iv: Interview) => String(iv.status ?? '').toLowerCase();
+
+  const activeInterviews = interviews.filter((iv) => !n(iv).includes('cancel'));
+
+  if (activeInterviews.length === 0) {
+    return {
+      color: 'orange',
+      label: 'Interview · Cancelled',
+      alertType: 'warning',
+      message: 'Your interview was cancelled. There are no actions pending from your side right now.',
+    };
+  }
+
+  const hasWaitingForSlot = activeInterviews.some(
+    (iv) => n(iv).includes('waiting for') && !iv.time_slots?.some((s) => s.is_selected)
+  );
+  const hasAwaitingFinalization = activeInterviews.some((iv) => n(iv).includes('awaiting'));
+  const hasInProgress = activeInterviews.some((iv) => n(iv).includes('in progress'));
+  const hasScheduled = activeInterviews.some((iv) => n(iv) === 'scheduled');
+  const hasApproved = interviews.some((iv) => ['approved', 'completed'].includes(n(iv)));
+  const hasRejected = interviews.some((iv) => n(iv).includes('reject'));
+
+  if (hasWaitingForSlot) {
+    return {
+      color: 'gold',
+      label: 'Interview · Select a Time Slot',
+      alertType: 'warning',
+      message:
+        'The client has requested you to confirm your availability for an interview. Please select a date and time below.',
+    };
+  }
+  if (hasInProgress) {
+    return {
+      color: 'blue',
+      label: 'Interview · In Progress',
+      alertType: 'info',
+      message: 'Your interview is currently in progress.',
+    };
+  }
+  if (hasAwaitingFinalization) {
+    return {
+      color: 'blue',
+      label: 'Interview · Slot Confirmed',
+      alertType: 'info',
+      message:
+        'You have confirmed your interview slot. The organizer will finalize the details shortly.',
+    };
+  }
+  if (hasScheduled) {
+    return {
+      color: 'purple',
+      label: 'Interview · Scheduled',
+      alertType: 'info',
+      message: 'Your interview has been scheduled. Check the details below.',
+    };
+  }
+  if (hasApproved) {
+    return {
+      color: 'green',
+      label: 'Interview · Passed',
+      alertType: 'success',
+      message: 'Congratulations! You have passed the interview stage.',
+    };
+  }
+  if (hasRejected) {
+    return {
+      color: 'red',
+      label: 'Interview · Did Not Progress',
+      alertType: 'error',
+      message: 'Unfortunately, your application did not progress beyond the interview stage.',
+    };
+  }
+
+  return {
+    color: 'purple',
+    label: 'Interview · Scheduled',
+    alertType: 'info',
+    message: 'Your interview has been scheduled. Check the details below.',
+  };
 };
 
 const INTERVIEW_TYPE_COLOR: Record<string, string> = {
@@ -59,10 +158,51 @@ interface SlotSelection {
   confirmed: boolean;
 }
 
+const getInterviewStatusMeta = (status?: string): { color: string; label: string } => {
+  const normalized = String(status ?? '').toLowerCase();
+  if (normalized.includes('awaiting')) {
+    return { color: 'gold', label: 'Awaiting Finalization' };
+  }
+  if (normalized.includes('waiting')) {
+    return { color: 'warning', label: 'Pending Confirmation' };
+  }
+  if (normalized.includes('cancel')) {
+    return { color: 'error', label: 'Cancelled' };
+  }
+  if (normalized.includes('complete')) {
+    return { color: 'success', label: 'Completed' };
+  }
+  if (normalized.includes('reject')) {
+    return { color: 'error', label: 'Rejected' };
+  }
+
+  return { color: 'default', label: status || 'Unknown' };
+};
+
+const formatInterviewSlotLine = (interview: Interview): string => {
+  const selected = interview.time_slots?.find((slot) => slot.is_selected);
+  const fallback = interview.time_slots?.[0];
+  const slot = selected || fallback;
+
+  if (!slot) {
+    return 'No slot selected';
+  }
+
+  const datePart = slot.slot_date
+    ? dayjs(slot.slot_date).format('MM/DD/YYYY')
+    : 'Date TBD';
+  const timePart = slot.slot_time || 'Time TBD';
+  const tzPart = slot.timezone ? ` (${slot.timezone})` : '';
+  const durationPart = slot.duration_minutes ? ` · ${slot.duration_minutes} min` : '';
+
+  return `${datePart}, ${timePart}${tzPart}${durationPart}`;
+};
+
 export default function ApplicationDetailPage() {
   const { uuid } = useParams<{ uuid: string }>();
   const navigate = useNavigate();
   const { message: msg } = App.useApp();
+  const { token } = theme.useToken();
 
   const [data, setData] = useState<ApplicationDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -151,7 +291,18 @@ export default function ApplicationDetailPage() {
   }
 
   const { application, job, interviews } = data;
-  const statusConf = STATUS_CONFIG[application.status] ?? { color: 'default', label: application.status, alertType: 'info' as const };
+
+  const enrichedStatus: StatusDisplay =
+    application.status === 'interview'
+      ? getEnrichedInterviewStatus(interviews)
+      : {
+          ...(PIPELINE_STATUS_CONFIG[application.status] ?? {
+            color: 'default',
+            label: application.status,
+            alertType: 'info' as const,
+          }),
+          message: `Your application status: ${PIPELINE_STATUS_CONFIG[application.status]?.label ?? application.status}`,
+        };
 
   const formatSalary = (from?: number, to?: number) => {
     if (!from && !to) return '—';
@@ -171,6 +322,30 @@ export default function ApplicationDetailPage() {
     return acc;
   }, {});
 
+  const actionableInterviewGroups = Object.entries(interviewsByType).filter(
+    ([, { slots, representative }]) => {
+      const normalizedStatus = String(representative.status ?? '').toLowerCase();
+      const hasConfirmedSlot = slots.some((slot) => slot.is_selected);
+      const isClosed =
+        normalizedStatus.includes('cancel') ||
+        normalizedStatus.includes('reject') ||
+        normalizedStatus.includes('complete');
+
+      return !isClosed && normalizedStatus.includes('waiting for') && !hasConfirmedSlot;
+    }
+  );
+
+  const pastInterviews = interviews.filter((iv) => {
+    const normalizedStatus = String(iv.status ?? '').toLowerCase();
+    const hasSelectedSlot = iv.time_slots?.some((slot) => slot.is_selected);
+    const isClosed =
+      normalizedStatus.includes('cancel') ||
+      normalizedStatus.includes('reject') ||
+      normalizedStatus.includes('complete');
+
+    return isClosed || hasSelectedSlot || !normalizedStatus.includes('waiting for');
+  });
+
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: '24px 16px' }}>
       <Space direction="vertical" size={24} style={{ width: '100%' }}>
@@ -181,23 +356,21 @@ export default function ApplicationDetailPage() {
 
         {/* Status banner */}
         <Alert
-          type={statusConf.alertType}
+          type={enrichedStatus.alertType}
           showIcon
           message={
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>
                 <CalendarOutlined style={{ marginRight: 8 }} />
-                {application.status === 'interview'
-                  ? 'The client has requested you to confirm your availability for an interview. Please select a date and time below.'
-                  : `Your application status: ${statusConf.label}`}
+                {enrichedStatus.message}
               </span>
-              <Tag color={statusConf.color}>{statusConf.label}</Tag>
+              <Tag color={enrichedStatus.color}>{enrichedStatus.label}</Tag>
             </div>
           }
         />
 
         {/* Interview confirmation section */}
-        {interviews.length > 0 && (
+        {actionableInterviewGroups.length > 0 && (
           <Card
             title={
               <Space>
@@ -208,7 +381,7 @@ export default function ApplicationDetailPage() {
             bordered={false}
           >
             <Space direction="vertical" size={12} style={{ width: '100%' }}>
-              {Object.entries(interviewsByType).map(([type, { slots, representative }]) => {
+              {actionableInterviewGroups.map(([type, { slots, representative }]) => {
                 const sel = selections[representative.uuid];
                 const color = INTERVIEW_TYPE_COLOR[type] ?? 'blue';
                 const hasConfirmedSlot = slots.some((s) => s.is_selected);
@@ -236,7 +409,7 @@ export default function ApplicationDetailPage() {
                     ) : representative.interview_link ? (
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                          <LinkOutlined style={{ color: '#8c8c8c' }} />
+                          <LinkOutlined style={{ color: token.colorTextTertiary }} />
                           <Text
                             style={{ flex: 1, wordBreak: 'break-all' }}
                             copyable
@@ -278,9 +451,9 @@ export default function ApplicationDetailPage() {
                                   alignItems: 'center',
                                   gap: 10,
                                   padding: '10px 14px',
-                                  border: `2px solid ${isSlotSelected || isChecked ? '#1677ff' : '#d9d9d9'}`,
+                                  border: `2px solid ${isSlotSelected || isChecked ? token.colorPrimary : token.colorBorder}`,
                                   borderRadius: 8,
-                                  backgroundColor: isSlotSelected || isChecked ? '#e6f4ff' : '#fff',
+                                  backgroundColor: isSlotSelected || isChecked ? token.colorPrimaryBg : token.colorBgContainer,
                                   transition: 'all 0.2s',
                                   opacity: hasConfirmedSlot && !isSlotSelected ? 0.5 : 1,
                                 }}
@@ -297,9 +470,12 @@ export default function ApplicationDetailPage() {
                                   disabled={hasConfirmedSlot}
                                 />
                                 <CalendarOutlined
-                                  style={{ color: isChecked || isSlotSelected ? '#1677ff' : '#999', fontSize: 15 }}
+                                  style={{
+                                    color: isChecked || isSlotSelected ? token.colorPrimary : token.colorTextTertiary,
+                                    fontSize: 15,
+                                  }}
                                 />
-                                <Text style={{ color: isChecked || isSlotSelected ? '#1677ff' : undefined }}>
+                                <Text style={{ color: isChecked || isSlotSelected ? token.colorPrimary : token.colorText }}>
                                   {dayjs(slot.slot_date).format('MM/DD/YYYY')}, {slot.slot_time}
                                   {slot.duration_minutes && (
                                     <Text type="secondary"> · {slot.duration_minutes} min</Text>
@@ -335,6 +511,47 @@ export default function ApplicationDetailPage() {
                       </>
                     )}
                   </Card>
+                );
+              })}
+            </Space>
+          </Card>
+        )}
+
+        {/* Past interviews - compact one-line rows */}
+        {pastInterviews.length > 0 && (
+          <Card
+            title={
+              <Space>
+                <CalendarOutlined />
+                <span>Past Interviews</span>
+              </Space>
+            }
+            bordered={false}
+          >
+            <Space direction="vertical" size={8} style={{ width: '100%' }}>
+              {pastInterviews.map((interview) => {
+                const statusMeta = getInterviewStatusMeta(interview.status);
+                const summaryLine = `${interview.interview_type} · ${formatInterviewSlotLine(interview)}`;
+
+                return (
+                  <div
+                    key={interview.uuid}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 12,
+                      border: `1px solid ${token.colorBorder}`,
+                      borderRadius: 8,
+                      background: token.colorBgContainer,
+                      padding: '10px 12px',
+                    }}
+                  >
+                    <Text style={{ color: token.colorText, flex: 1 }} ellipsis={{ tooltip: summaryLine }}>
+                      {summaryLine}
+                    </Text>
+                    <Tag color={statusMeta.color}>{statusMeta.label}</Tag>
+                  </div>
                 );
               })}
             </Space>

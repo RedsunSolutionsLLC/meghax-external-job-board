@@ -70,6 +70,11 @@ export interface UploadedAttachment {
 export interface MyApplication {
   uuid: string;
   status: string;
+  interview_status_summary?: {
+    code: string;
+    label: string;
+    color: string;
+  } | null;
   submitted_at?: string;
   created_at?: string;
   job: {

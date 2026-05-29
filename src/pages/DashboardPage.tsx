@@ -40,6 +40,23 @@ const STATUS_COLORS: Record<string, string> = {
   accepted: 'green',
 };
 
+const toTitleCase = (value: string): string =>
+  value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
+const getApplicationStatusDisplay = (record: MyApplication): { label: string; color: string } => {
+  if (record.status === 'interview' && record.interview_status_summary?.label) {
+    return {
+      label: record.interview_status_summary.label,
+      color: record.interview_status_summary.color || 'purple',
+    };
+  }
+
+  return {
+    label: toTitleCase(record.status),
+    color: STATUS_COLORS[record.status] ?? 'default',
+  };
+};
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -129,11 +146,14 @@ function MyApplicationsTab() {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
-      render: (status: string) => (
-        <Tag color={STATUS_COLORS[status] ?? 'default'}>
-          {status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+      render: (_status: string, record: MyApplication) => {
+        const display = getApplicationStatusDisplay(record);
+        return (
+        <Tag color={display.color}>
+          {display.label}
         </Tag>
-      ),
+      );
+      },
     },
     {
       title: 'Applied',
